@@ -1,11 +1,11 @@
 from Util import train_model
 from Models import MANN2
 
-itr_cnt = 25000
+itr_cnt = 40000
 # Config = (K,N)
 # K: num of samples per class
 # N: num of classes
-configs = [(1,2)]
+configs = [(1,5), (4,5)]
 
 for config in configs:
   K, N = config

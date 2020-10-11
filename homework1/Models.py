@@ -61,7 +61,7 @@ class MANN2(MANN):
         self.layer1 = tf.keras.layers.Conv2D(16, (3, 3), activation='relu',
                                              input_shape=(28, 28))
         self.layer2 = tf.keras.layers.MaxPooling2D((3, 3))
-        self.layer3 = tf.keras.layers.Conv2D(16, (3, 3), activation='relu')
+        self.layer3 = tf.keras.layers.Conv2D(32, (3, 3), activation='relu')
         self.layer4 = tf.keras.layers.MaxPooling2D((3, 3))
         self.layer5 = tf.keras.layers.LSTM(cell_count, return_sequences=True)
         self.layer6 = tf.keras.layers.LSTM(cell_count, return_sequences=True)
@@ -88,12 +88,12 @@ class MANN2(MANN):
         labels = tf.reshape(labels, (-1, K*N, N))
 
         out = images
-
         out = self.layer1(out)
         # out = self.layer2(out)
         # out = self.layer3(out)
         # out = self.layer4(out)
-        # out = tf.reshape(out, (out.shape[0], -1))
+
+        out = tf.reshape(out, (out.shape[0], -1))
 
         out = tf.reshape(out, (B,K*N,-1))
         out = tf.concat((out, labels), -1)
