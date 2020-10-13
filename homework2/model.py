@@ -90,10 +90,10 @@ class MAML(tf.keras.Model):
       # https://www.tensorflow.org/api_docs/python/tf/GradientTape
       # make a copy of the current weight
       N, K, M = input_tr.shape
-      input_tr = input_tr.reshape((N*K, M))
-      input_ts = input_ts.reshape((N*K, M))
-      label_tr = label_tr.reshape((N*K, N))
-      label_ts = label_ts.reshape((N*K, N))
+      input_tr = tf.reshape(input_tr, (N*K, M))
+      input_ts = tf.reshape(input_ts, (N*K, M))
+      label_tr = tf.reshape(label_tr, (N*K, N))
+      label_ts = tf.reshape(label_ts, (N*K, N))
       gamma = weights.copy()
       for j in range(num_inner_updates):
         with tf.GradientTape(persistent=True) as g:
@@ -101,6 +101,8 @@ class MAML(tf.keras.Model):
           task_loss_tr_pre = self.loss_func(task_output_tr_pre, label_tr)
 
           grad = g.gradient(task_loss_tr_pre, weights)
+          import pdb
+          pdb.set_trace()
           for name in gamma:
             gamma[name] = gamma[name] - self.inner_update_lr * grad[name]
 
