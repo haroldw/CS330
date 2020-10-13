@@ -65,55 +65,17 @@ def meta_train_fn(model, exp_string, data_generator,
   modelName = f'Inner_LR-{inner_lr}'
   writer = tf.summary.create_file_writer(f'./models/{modelName}/')
 
-  for itr in range(meta_train_iterations):
-    #############################
-    #### YOUR CODE GOES HERE ####
-
-    # sample a batch of training data and partition into
-    # the support/training set (input_tr, label_tr) and the query/test set (input_ts, label_ts)
-    # NOTE: The code assumes that the support and query sets have the same number of examples.
-    images, labels = data_generator.sample_batch(batch_type='meta_train',
-                                                 batch_size=meta_batch_size)
-    
-    K = images.shape[-2]
-    support_set_size = int(K/2)
-    input_tr = images[:,:,:support_set_size]
-    input_ts = images[:,:,-support_set_size:]
-
-    label_tr = labels[:,:,:support_set_size]
-    label_ts = labels[:,:,-support_set_size:]
-    #############################
-
-    inp = (input_tr, input_ts, label_tr, label_ts)
-    
-    result = outer_train_step(inp, model, optimizer, 
-                              meta_batch_size=meta_batch_size,
-                              num_inner_updates=num_inner_updates)
-
-    if itr % SUMMARY_INTERVAL == 0:
-      pre_accuracies.append(result[-2])
-      post_accuracies.append(result[-1][-1])
-      tf.summary.scalar('Train Loss Pre', np.mean(result[2]), step=itr)
-      tf.summary.scalar('Train Loss Post', np.mean(result[3]), step=itr)
-      writer.flush()
-
-    if (itr!=0) and itr % PRINT_INTERVAL == 0:
-      print_str = 'Iteration %d: pre-inner-loop train accuracy: %.5f, post-inner-loop test accuracy: %.5f' % (itr, np.mean(pre_accuracies), np.mean(post_accuracies))
-      print(print_str)
-      tf.summary.scalar('Test Accuracy Pre', np.mean(pre_accuracies), step=itr)
-      tf.summary.scalar('Test Accuracy Post', np.mean(post_accuracies), step=itr)
-      writer.flush()
-      pre_accuracies, post_accuracies = [], []
-
-    if (itr!=0) and itr % TEST_PRINT_INTERVAL == 0:
+  with writer.as_default():
+    for itr in range(meta_train_iterations):
       #############################
       #### YOUR CODE GOES HERE ####
 
-      # sample a batch of validation data and partition it into
+      # sample a batch of training data and partition into
       # the support/training set (input_tr, label_tr) and the query/test set (input_ts, label_ts)
       # NOTE: The code assumes that the support and query sets have the same number of examples.
-      images, labels = data_generator.sample_batch(batch_type='meta_val',
-                                                 batch_size=meta_batch_size)
+      images, labels = data_generator.sample_batch(batch_type='meta_train',
+                                                  batch_size=meta_batch_size)
+      
       K = images.shape[-2]
       support_set_size = int(K/2)
       input_tr = images[:,:,:support_set_size]
@@ -124,13 +86,56 @@ def meta_train_fn(model, exp_string, data_generator,
       #############################
 
       inp = (input_tr, input_ts, label_tr, label_ts)
-      result = outer_eval_step(inp, model, meta_batch_size=meta_batch_size, num_inner_updates=num_inner_updates)
+      
+      result = outer_train_step(inp, model, optimizer, 
+                                meta_batch_size=meta_batch_size,
+                                num_inner_updates=num_inner_updates)
 
-      print('Meta-validation pre-inner-loop train accuracy: %.5f, meta-validation post-inner-loop test accuracy: %.5f' % (result[-2], result[-1][-1]))
+      if itr % SUMMARY_INTERVAL == 0:
+        pre_accuracies.append(result[-2])
+        post_accuracies.append(result[-1][-1])
+        tf.summary.scalar('Train Loss Pre', np.mean(result[2]), step=itr)
+        tf.summary.scalar('Train Loss Post', np.mean(result[3]), step=itr)
+        writer.flush()
 
-  model_file = logdir + '/' + exp_string +  '/model' + str(itr)
-  print("Saving to ", model_file)
-  model.save_weights(model_file)
+      if (itr!=0) and itr % PRINT_INTERVAL == 0:
+        print_str = 'Iteration %d: pre-inner-loop train accuracy: %.5f, post-inner-loop test accuracy: %.5f' % (itr, np.mean(pre_accuracies), np.mean(post_accuracies))
+        print(print_str)
+        tf.summary.scalar('Test Accuracy Pre', np.mean(pre_accuracies), step=itr)
+        tf.summary.scalar('Test Accuracy Post', np.mean(post_accuracies), step=itr)
+        writer.flush()
+        pre_accuracies, post_accuracies = [], []
+
+      if (itr!=0) and itr % TEST_PRINT_INTERVAL == 0:
+        #############################
+        #### YOUR CODE GOES HERE ####
+
+        # sample a batch of validation data and partition it into
+        # the support/training set (input_tr, label_tr) and the query/test set (input_ts, label_ts)
+        # NOTE: The code assumes that the support and query sets have the same number of examples.
+        images, labels = data_generator.sample_batch(batch_type='meta_val',
+                                                  batch_size=meta_batch_size)
+        K = images.shape[-2]
+        support_set_size = int(K/2)
+        input_tr = images[:,:,:support_set_size]
+        input_ts = images[:,:,-support_set_size:]
+
+        label_tr = labels[:,:,:support_set_size]
+        label_ts = labels[:,:,-support_set_size:]
+        #############################
+
+        inp = (input_tr, input_ts, label_tr, label_ts)
+        result = outer_eval_step(inp, model, meta_batch_size=meta_batch_size, num_inner_updates=num_inner_updates)
+        meta_val_accruracy_pre = result[-2]
+        meta_val_accuracy_post = result[-1][-1]
+        tf.summary.scalar('Meta-validation Accuracy Pre', meta_val_accruracy_pre, step=itr)
+        tf.summary.scalar('Meta-validation Accuracy Post', meta_val_accuracy_post, step=itr)
+        writer.flush()
+        print('Meta-validation pre-inner-loop train accuracy: %.5f, meta-validation post-inner-loop test accuracy: %.5f' % (result[-2], result[-1][-1]))
+
+    model_file = logdir + '/' + exp_string +  '/model' + str(itr)
+    print("Saving to ", model_file)
+    model.save_weights(model_file)
 
 # calculated for omniglot
 NUM_META_TEST_POINTS = 600
