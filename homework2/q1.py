@@ -74,6 +74,7 @@ def meta_train_fn(model, exp_string, data_generator,
     # NOTE: The code assumes that the support and query sets have the same number of examples.
     images, labels = data_generator.sample_batch(batch_type='meta_train',
                                                  batch_size=meta_batch_size)
+    
     K = images.shape[-2]
     support_set_size = int(K/2)
     input_tr = images[:,:,:support_set_size]

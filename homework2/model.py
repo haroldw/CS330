@@ -62,6 +62,7 @@ class MAML(tf.keras.Model):
       """
       # the inner and outer loop data
       input_tr, input_ts, label_tr, label_ts = inp
+      # FIXME: Reshape inputs to N*K
 
       # weights corresponds to the initial weights in MAML (i.e. the meta-parameters)
       weights = self.conv_layers.conv_weights
@@ -88,27 +89,31 @@ class MAML(tf.keras.Model):
       # https://www.tensorflow.org/guide/advanced_autodiff#higher-order_gradients
       # https://www.tensorflow.org/api_docs/python/tf/GradientTape
       # make a copy of the current weight
+      N, K, M = input_tr.shape
+      input_tr = input_tr.reshape((N*K, M))
+      input_ts = input_ts.reshape((N*K, M))
+      label_tr = label_tr.reshape((N*K, N))
+      label_ts = label_ts.reshape((N*K, N))
       gamma = weights.copy()
       for j in range(num_inner_updates):
         with tf.GradientTape(persistent=True) as g:
-          task_output_tr_pre = self.conv_layers(input_tr, weights)
+          task_output_tr_pre = self.conv_layers(input_tr, gamma)
           task_loss_tr_pre = self.loss_func(task_output_tr_pre, label_tr)
 
-        grad = g.gradient(task_loss_tr_pre, weights)
-        for name in gamma:
-          gamma[name] = gamma[name] - self.inner_update_lr * grad[name]
+          grad = g.gradient(task_loss_tr_pre, weights)
+          for name in gamma:
+            gamma[name] = gamma[name] - self.inner_update_lr * grad[name]
 
-      for j in range(input_ts.shape[1]):
         pred = self.conv_layers(input_tr, gamma)
         task_outputs_ts.append(pred)
-        task_losses_ts.append(self.loss_func(pred, label_ts[:,j,:]))
+        task_losses_ts.append(self.loss_func(pred, label_ts))
       #############################
 
       # Compute accuracies from output predictions
-      task_accuracy_tr_pre = util.accuracy(tf.argmax(input=label_tr, axis=1), tf.argmax(input=tf.nn.softmax(task_output_tr_pre), axis=1))
+      task_accuracy_tr_pre = util.accuracy(tf.argmax(input=label_tr, axis=-1), tf.argmax(input=tf.nn.softmax(task_output_tr_pre), axis=1))
 
       for j in range(num_inner_updates):
-        task_accuracies_ts.append(util.accuracy(tf.argmax(input=label_ts, axis=1), tf.argmax(input=tf.nn.softmax(task_outputs_ts[j]), axis=1)))
+        task_accuracies_ts.append(util.accuracy(tf.argmax(input=label_ts, axis=-1), tf.argmax(input=tf.nn.softmax(task_outputs_ts[j]), axis=1)))
 
       task_output = [task_output_tr_pre, task_outputs_ts, task_loss_tr_pre, task_losses_ts, task_accuracy_tr_pre, task_accuracies_ts]
 

@@ -112,6 +112,7 @@ class DataGenerator(object):
       folders = self.metatest_character_folders
       num_classes = self.num_meta_test_classes
       num_samples_per_class = self.num_meta_test_samples_per_class
+
     all_image_batches, all_label_batches = [], []
     for i in range(batch_size):
       sampled_character_folders = random.sample(
