@@ -101,12 +101,10 @@ class MAML(tf.keras.Model):
           task_loss_tr_pre = self.loss_func(task_output_tr_pre, label_tr)
 
           grad = g.gradient(task_loss_tr_pre, weights)
-          import pdb
-          pdb.set_trace()
           for name in gamma:
             gamma[name] = gamma[name] - self.inner_update_lr * grad[name]
 
-        pred = self.conv_layers(input_tr, gamma)
+        pred = self.conv_layers(input_ts, gamma)
         task_outputs_ts.append(pred)
         task_losses_ts.append(self.loss_func(pred, label_ts))
       #############################
