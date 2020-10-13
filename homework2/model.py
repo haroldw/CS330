@@ -205,10 +205,8 @@ def ProtoLoss(x_latent, q_latent, labels_onehot, num_classes, num_support, num_q
 
   centroids = tf.zeros((num_classes, x_latent.shape[-1]))
   labels = tf.identity(num_classes)
-  import pdb
-  pdb.set_trace()
   for c in range(num_classes):
-    centroids[c,:] = tf.reduce_mean(tf.boolean_mask(x_latent, np.all(x_labels==labels[c],axis=1)),axis=0)
+    centroids[c,:] = tf.reduce_mean(tf.boolean_mask(x_latent, tf.all(x_labels==labels[c],axis=1)),axis=0)
 
   distances = tf.zeros((num_queries*num_classes, num_classes))
 

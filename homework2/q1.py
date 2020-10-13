@@ -61,8 +61,8 @@ def meta_train_fn(model, exp_string, data_generator,
 
   optimizer = tf.keras.optimizers.Adam(learning_rate=meta_lr)
 
-  modelName = f'Inner_LR-{inner_lr}'
-  writer = tf.summary.create_file_writer(f'./models/{modelName}/')
+  # modelName = f'Inner_LR-{inner_lr}'
+  writer = tf.summary.create_file_writer(f'./models/{exp_string}/')
 
   with writer.as_default():
     for itr in range(meta_train_iterations):
@@ -225,11 +225,12 @@ def run_maml(n_way=5, k_shot=1, meta_batch_size=25, meta_lr=0.001,
     meta_test_fn(model, data_generator, n_way, meta_batch_size, k_shot, num_inner_updates)
   
 if __name__ == '__main__':
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+  itr_cnt = 7000
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
            inner_update_lr=0.4, learn_inner_update_lr=False)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
-           inner_update_lr=4, learn_inner_update_lr=False)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+           inner_update_lr=4., learn_inner_update_lr=False)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
            inner_update_lr=0.4, learn_inner_update_lr=True)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
-           inner_update_lr=4, learn_inner_update_lr=True)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+           inner_update_lr=4., learn_inner_update_lr=True)
