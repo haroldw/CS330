@@ -7,11 +7,10 @@ Usage Instructions:
     python main.py --meta_train_iterations=15000 --meta_batch_size=16 --k_shot=1 --n_way=20 --inner_update_lr=0.1 --num_inner_updates=5 --logdir=logs/omniglot20way/
   To run evaluation, use the '--meta_train=False' flag and the '--meta_test_set=True' flag to use the meta-test set.
 """
-import csv
 import numpy as np
-import pickle
 import random
 import tensorflow as tf
+from optparse import OptionParser
 
 from data_generator import DataGenerator
 from model import MAML
@@ -226,4 +225,11 @@ def run_maml(n_way=5, k_shot=1, meta_batch_size=25, meta_lr=0.001,
     meta_test_fn(model, data_generator, n_way, meta_batch_size, k_shot, num_inner_updates)
   
 if __name__ == '__main__':
-    run_maml(n_way=5, k_shot=1, inner_update_lr=0.4, num_inner_updates=1)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+           inner_update_lr=0.4, learn_inner_update_lr=False)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+           inner_update_lr=4, learn_inner_update_lr=False)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+           inner_update_lr=0.4, learn_inner_update_lr=True)
+  run_maml(n_way=5, k_shot=1, num_inner_updates=1,
+           inner_update_lr=4, learn_inner_update_lr=True)

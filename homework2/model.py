@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import tensorflow as tf
 from functools import partial
+from tensorflow.keras import layers
 import util
 
 class MAML(tf.keras.Model):
@@ -102,7 +103,10 @@ class MAML(tf.keras.Model):
 
           grad = g.gradient(task_loss_tr_pre, weights)
           for name in gamma:
-            gamma[name] = gamma[name] - self.inner_update_lr * grad[name]
+            lr = self.inner_update_lr
+            if self.learn_inner_update_lr:
+              lr = self.inner_update_lr_dict[name][j]
+            gamma[name] = gamma[name] - lr * grad[name]
 
         pred = self.conv_layers(input_ts, gamma)
         task_outputs_ts.append(pred)
@@ -137,3 +141,82 @@ class MAML(tf.keras.Model):
                        parallel_iterations=meta_batch_size)
     return result
    
+class ProtoNet(tf.keras.Model):
+
+  def __init__(self, num_filters, latent_dim):
+    super(ProtoNet, self).__init__()
+    self.num_filters = num_filters
+    self.latent_dim = latent_dim
+    num_filter_list = self.num_filters + [latent_dim]
+    self.convs = []
+    for i, num_filter in enumerate(num_filter_list):
+      block_parts = [
+        layers.Conv2D(
+          filters=num_filter,
+          kernel_size=3,
+          padding='SAME',
+          activation='linear'),
+      ]
+
+      block_parts += [layers.BatchNormalization()]
+      block_parts += [layers.Activation('relu')]
+      block_parts += [layers.MaxPool2D()]
+      block = tf.keras.Sequential(block_parts, name='conv_block_%d' % i)
+      self.__setattr__("conv%d" % i, block)
+      self.convs.append(block)
+    self.flatten = tf.keras.layers.Flatten()
+
+  def call(self, inp):
+    out = inp
+    for conv in self.convs:
+      out = conv(out)
+    out = self.flatten(out)
+    return out
+
+def ProtoLoss(x_latent, q_latent, labels_onehot, num_classes, num_support, num_queries):
+  """
+    calculates the prototype network loss using the latent representation of x
+    and the latent representation of the query set
+    Args:
+      x_latent: latent representation of supports with shape [N*S, D], where D is the latent dimension
+      q_latent: latent representation of queries with shape [N*Q, D], where D is the latent dimension
+      labels_onehot: one-hot encodings of the labels of the queries with shape [N, Q, N]
+      num_classes: number of classes (N) for classification
+      num_support: number of examples (S) in the support set
+      num_queries: number of examples (Q) in the query set
+    Returns:
+      ce_loss: the cross entropy loss between the predicted labels and true labels
+      acc: the accuracy of classification on the queries
+  """
+  #############################
+  #### YOUR CODE GOES HERE ####
+
+  # compute the prototypes
+  # compute the distance from the prototypes
+  # compute cross entropy loss
+  # note - additional steps are needed!
+  # return the cross-entropy loss and accuracy
+
+  # labels = tf.argmax(labels_onehot, axis=-1)
+  x_labels = labels_onehot[:, :, num_support]
+  q_labels = labels_onehot[:, :, -num_queries:]
+  x_labels = tf.reshape(x_labels, (-1,num_classes))
+  q_labels = tf.reshape(q_labels, (-1,num_classes))
+
+  centroids = tf.zeros((num_classes, x_latent.shape[-1]))
+  labels = tf.identity(num_classes)
+  import pdb
+  pdb.set_trace()
+  for c in range(num_classes):
+    centroids[c,:] = tf.reduce_mean(tf.boolean_mask(x_latent, np.all(x_labels==labels[c],axis=1)),axis=0)
+
+  distances = tf.zeros((num_queries*num_classes, num_classes))
+
+  for i in range(len(q_labels)):
+    distances[i] = tf.norm(q_latent[i] - centroids, axis=1)
+
+  ce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(q_labels, distances))
+  acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(q_labels, axis=-1), tf.argmax(distances, axis=-1)), dtype=tf.float32))
+
+  #############################
+  return ce_loss, acc
