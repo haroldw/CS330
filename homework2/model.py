@@ -196,25 +196,24 @@ def ProtoLoss(x_latent, q_latent, labels_onehot, num_classes, num_support, num_q
   # compute cross entropy loss
   # note - additional steps are needed!
   # return the cross-entropy loss and accuracy
-
-  # labels = tf.argmax(labels_onehot, axis=-1)
-  x_labels = labels_onehot[:, :, num_support]
   q_labels = labels_onehot[:, :, -num_queries:]
-  x_labels = tf.reshape(x_labels, (-1,num_classes))
-  q_labels = tf.reshape(q_labels, (-1,num_classes))
+  q_labels = tf.reshape(q_labels, (num_classes*num_queries, -1))
 
-  centroids = tf.zeros((num_classes, x_latent.shape[-1]))
-  labels = tf.identity(num_classes)
-  for c in range(num_classes):
-    centroids[c,:] = tf.reduce_mean(tf.boolean_mask(x_latent, tf.all(x_labels==labels[c],axis=1)),axis=0)
+  # q_latent should have a shape of (num_classes*num_queries, num_classes, D)
+  # The 2nd dimension is a duplication N times
+  q_latent = tf.reshape(q_latent, (num_classes*num_queries, 1, -1))
+  q_latent = tf.tile(q_latent, (1, num_classes, 1))
 
-  distances = tf.zeros((num_queries*num_classes, num_classes))
+  # centroid should have a shape of (num_classes*num_queries, num_classes, D)
+  x_latent = tf.reshape(x_latent, (num_classes, num_support, -1))
+  centroids = tf.reshape(tf.reduce_mean(x_latent, axis=1), (1, num_classes, -1))
+  centroids = tf.tile(centroids,(num_classes*num_queries,1,1))
 
-  for i in range(len(q_labels)):
-    distances[i] = tf.norm(q_latent[i] - centroids, axis=1)
-
-  ce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(q_labels, distances))
-  acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(q_labels, axis=-1), tf.argmax(distances, axis=-1)), dtype=tf.float32))
+  distances = -tf.norm(q_latent-centroids, axis=-1)
+  ce_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+    labels=q_labels, logits=distances))
+  acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(q_labels, axis=-1),
+    tf.argmax(distances, axis=-1)), dtype=tf.float32))
 
   #############################
   return ce_loss, acc

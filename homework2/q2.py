@@ -49,48 +49,54 @@ def run_protonet(data_path='./omniglot_resized', n_way=20, k_shot=1, n_query=5, 
   model = ProtoNet([num_filters]*num_conv_layers, latent_dim)
   optimizer = tf.keras.optimizers.Adam()
 
-  # call DataGenerator with k_shot+n_query samples per class
-  data_generator = DataGenerator(n_way, k_shot+n_query, n_meta_test_way, k_meta_test_shot+n_meta_test_query)
-  for ep in range(n_epochs):
-    for epi in range(n_episodes):
-      #############################
-      #### YOUR CODE GOES HERE ####
+  writer = tf.summary.create_file_writer(f'./models/protonet/')
 
-      # sample a batch of training data and partition it into
-      # support and query sets
-
-      images, labels = data_generator.sample_batch(batch_type='meta_train',
-                                                   batch_size=1,
-                                                   shuffle=True,
-                                                   swap=False)
-      images = images.reshape(n_way,k_shot+n_query, 28, 28, 1)
-      support = images[:,:k_shot]
-      query = images[:,-n_query:]
-      #############################
-      ls, ac = proto_net_train_step(model, optimizer, x=support, q=query, labels_ph=labels)
-      if (epi+1) % 50 == 0:
+  with writer.as_default():
+    # call DataGenerator with k_shot+n_query samples per class
+    data_generator = DataGenerator(n_way, k_shot+n_query, n_meta_test_way, k_meta_test_shot+n_meta_test_query)
+    for ep in range(n_epochs):
+      for epi in range(n_episodes):
         #############################
         #### YOUR CODE GOES HERE ####
 
-        # sample a batch of validation data and partition it into
+        # sample a batch of training data and partition it into
         # support and query sets
-        images, labels = data_generator.sample_batch(batch_type='meta_val',
-                                                     batch_size=1,
-                                                     shuffle=True,
-                                                     swap=False)
+
+        images, labels = data_generator.sample_batch(batch_type='meta_train',
+                                                    batch_size=1,
+                                                    shuffle=False,
+                                                    swap=False)
         images = images.reshape(n_way,k_shot+n_query, 28, 28, 1)
         support = images[:,:k_shot]
         query = images[:,-n_query:]
         #############################
-        val_ls, val_ac = proto_net_eval(model, x=support, q=query, labels_ph=labels)
-        print('[epoch {}/{}, episode {}/{}] => meta-training loss: {:.5f}, meta-training acc: {:.5f}, meta-val loss: {:.5f}, meta-val acc: {:.5f}'.format(ep+1,
-                                                                    n_epochs,
-                                                                    epi+1,
-                                                                    n_episodes,
-                                                                    ls,
-                                                                    ac,
-                                                                    val_ls,
-                                                                    val_ac))
+        ls, ac = proto_net_train_step(model, optimizer, x=support, q=query, labels_ph=labels)
+        if (epi+1) % 50 == 0:
+          #############################
+          #### YOUR CODE GOES HERE ####
+
+          # sample a batch of validation data and partition it into
+          # support and query sets
+          images, labels = data_generator.sample_batch(batch_type='meta_val',
+                                                      batch_size=1,
+                                                      shuffle=False,
+                                                      swap=False)
+          images = images.reshape(n_way,k_shot+n_query, 28, 28, 1)
+          support = images[:,:k_shot]
+          query = images[:,-n_query:]
+          #############################
+          val_ls, val_ac = proto_net_eval(model, x=support, q=query, labels_ph=labels)
+          print('[epoch {}/{}, episode {}/{}] => meta-training loss: {:.5f}, meta-training acc: {:.5f}, meta-val loss: {:.5f}, meta-val acc: {:.5f}'.format(ep+1,
+                                                                      n_epochs,
+                                                                      epi+1,
+                                                                      n_episodes,
+                                                                      ls,
+                                                                      ac,
+                                                                      val_ls,
+                                                                      val_ac))
+          tf.summary.scalar('Validation Loss', val_ls, step=ep*n_episodes+epi)
+          tf.summary.scalar('Validation Acc', val_ac, step=ep*n_episodes+epi)
+          writer.flush()
 
   print('Testing...')
   meta_test_accuracies = []
@@ -102,7 +108,7 @@ def run_protonet(data_path='./omniglot_resized', n_way=20, k_shot=1, n_query=5, 
     # support and query sets
     images, labels = data_generator.sample_batch(batch_type='meta_test',
                                                  batch_size=1,
-                                                 shuffle=True,
+                                                 shuffle=False,
                                                  swap=False)
     images = images.reshape(n_way,k_meta_test_shot+n_meta_test_query, 28, 28, 1)
     support = images[:,:k_meta_test_shot]
