@@ -124,3 +124,6 @@ def run_protonet(data_path='./omniglot_resized', n_way=20, k_shot=1, n_query=5, 
 
 if __name__ == '__main__':
   run_protonet('./omniglot_resized/', n_way=5, k_shot=1, n_query=5, n_meta_test_way=5, k_meta_test_shot=4, n_meta_test_query=4)
+  run_protonet('./omniglot_resized/', n_way=5, k_shot=1, n_query=5, n_meta_test_way=5, k_meta_test_shot=4, n_meta_test_query=6)
+  run_protonet('./omniglot_resized/', n_way=5, k_shot=1, n_query=5, n_meta_test_way=5, k_meta_test_shot=4, n_meta_test_query=8)
+  run_protonet('./omniglot_resized/', n_way=5, k_shot=1, n_query=5, n_meta_test_way=5, k_meta_test_shot=4, n_meta_test_query=10)

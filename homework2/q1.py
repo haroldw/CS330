@@ -226,11 +226,32 @@ def run_maml(n_way=5, k_shot=1, meta_batch_size=25, meta_lr=0.001,
   
 if __name__ == '__main__':
   itr_cnt = 7000
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
-           inner_update_lr=0.4, learn_inner_update_lr=False)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
-           inner_update_lr=4., learn_inner_update_lr=False)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
-           inner_update_lr=0.4, learn_inner_update_lr=True)
-  run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
-           inner_update_lr=4., learn_inner_update_lr=True)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #         inner_update_lr=0.04, learn_inner_update_lr=False)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #          inner_update_lr=0.4, learn_inner_update_lr=False)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #          inner_update_lr=4., learn_inner_update_lr=False)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #          inner_update_lr=0.04, learn_inner_update_lr=True)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #          inner_update_lr=0.4, learn_inner_update_lr=True)
+  # run_maml(n_way=5, k_shot=1, num_inner_updates=1, meta_train_iterations=itr_cnt,
+  #          inner_update_lr=4., learn_inner_update_lr=True)
+  
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=4.,
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=0.4,
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=0.04,
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=4., learn_inner_update_lr=True, 
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=.4, learn_inner_update_lr=True,
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  # run_maml(n_way=5, k_shot=1, inner_update_lr=.04, learn_inner_update_lr=True,
+  #          num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  for k_shot in [4, 6, 8, 10]:
+    run_maml(n_way=5, k_shot=k_shot, inner_update_lr=0.4,
+            num_inner_updates=1, meta_train=False, meta_train_k_shot=1)
+  
