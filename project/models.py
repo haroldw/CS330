@@ -1,10 +1,9 @@
 import numpy as np
-from numpy.core.defchararray import mod
 import torch
 import torch.nn as nn
 
 from itertools import chain
-
+from numpy.core.defchararray import mod
 from torch.nn.modules.module import Module
 from util import logsumexp
 
