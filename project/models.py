@@ -40,9 +40,12 @@ class ModelNonCausal(nn.Module):
         self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
 
     def forward(self, inputs):
-        return self.w[inputs[:,0], inputs[:,1]]
+        # We need to normalize the weight so that it adds up to 1
+        cste = torch.logsumexp(torch.logsumexp(self.w, dim=0), dim=0)
+        return self.w[inputs[:,0], inputs[:,1]] - cste
 
     def set_ground_truth(self, pi_A, pi_B_A):
+        # Initializing the model parameter to some random value
         pi_A_AND_B = np.random.dirichlet(np.ones(self.N), size=self.N)
         pi_A_AND_B = torch.from_numpy(pi_A_AND_B)        
         self.w.data = torch.log(pi_A_AND_B)
@@ -83,6 +86,7 @@ class ModelCausal(nn.Module):
         return self.set_ground_truth(pi_A, pi_B_A)
 
     def set_ground_truth(self, pi_A, pi_B_A):
+        # Initializing the model parameter to some random value
         pi_A = np.random.dirichlet(np.ones(self.N))
         pi_B_A = np.random.dirichlet(np.ones(self.N), size=self.N)
         pi_A_th = pi_A

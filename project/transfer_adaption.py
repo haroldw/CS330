@@ -9,10 +9,10 @@ from models import StructuralModel
 N = 10
 model = StructuralModel(N, dtype=torch.float64)
 
-num_episodes = 500
+num_episodes = 1000
 batch_size = 100 # 1
 num_test = 10000
-num_training = 1 # 100
+num_training = 10 # 100
 num_transfers = 10 # 100
 
 optimizer = torch.optim.SGD(model.modules_parameters(), lr=1.)
