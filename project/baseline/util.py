@@ -25,7 +25,7 @@ def logsumexp(a, b):
     min_, max_ = torch.min(a, b), torch.max(a, b)
     return max_ + F.softplus(min_ - max_)
 
-def plot_loss(losses):
+def plot_loss(losses, image_output_path=None):
     num_episodes = losses.shape[-1]
     flat_losses = -losses.reshape((2, -1, num_episodes))
     losses_25, losses_50, losses_75 = np.percentile(flat_losses, (25, 50, 75), axis=1)
@@ -43,4 +43,8 @@ def plot_loss(losses):
     ax.set_xlabel('Number of examples', fontsize=14)
     ax.set_ylabel(r'$\log P(D\mid \cdot \rightarrow \cdot)$', fontsize=14)
 
-    plt.show()
+    if image_output_path:
+        plt.savefig(image_output_path)
+    else:
+        plt.show()
+    
