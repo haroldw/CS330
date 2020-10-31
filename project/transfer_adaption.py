@@ -14,7 +14,7 @@ model = StructuralModel(N, dtype=torch.float64)
 num_episodes = 500
 batch_size = 100 # 1
 num_test = 10000
-num_training = 10 # 100
+num_training = 1 # 100
 num_transfers = 10 # 100
 
 optimizer = torch.optim.SGD(model.modules_parameters(), lr=1.)
