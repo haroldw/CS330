@@ -27,11 +27,11 @@ class Conditional(nn.Module):
         return self.w[conds_, inputs.squeeze(1)] - cste
 
 class Model(nn.Module):
-    def __init__(self, N, marginal, conditional):
+    def __init__(self, N, dtype=None):
         super(Model, self).__init__()
         self.N = N
-        self.p_A = marginal
-        self.p_B_A = conditional
+        self.p_A = Marginal(N, dtype=dtype)
+        self.p_B_A = Conditional(N, dtype=dtype)
 
     def forward(self, inputs):
         inputs_A, inputs_B = torch.split(inputs, 1, dim=1)
@@ -58,42 +58,37 @@ class Model(nn.Module):
 
         return self.set_ground_truth(pi_A, pi_B_A)
 
-class Model1(Model):
-    def __init__(self, N, dtype=None):
-        Model.__init__(self, N, Marginal(N, dtype=dtype), Conditional(N, dtype=dtype))
-
     def set_ground_truth(self, pi_A, pi_B_A):
-        pi_A_th = torch.from_numpy(pi_A)
-        pi_B_A_th = torch.from_numpy(pi_B_A)
+        pi_A_th = pi_A
+        if isinstance(pi_A_th, np.ndarray):
+          pi_A_th = torch.from_numpy(pi_A_th)
+
+        pi_B_A_th = pi_B_A
+        if isinstance(pi_B_A_th, np.ndarray):
+          pi_B_A_th = torch.from_numpy(pi_B_A_th)
         
         self.p_A.w.data = torch.log(pi_A_th)
         self.p_B_A.w.data = torch.log(pi_B_A_th)
 
-class Model2(Model):
-    def __init__(self, N, dtype=None):
-        Model.__init__(self, N, Marginal(N, dtype=dtype), Conditional(N, dtype=dtype))
-
-    def set_ground_truth(self, pi_A, pi_B_A):
-        # Calculating P(A|B) and P(B) from P(A) and P(B|A)
-        pi_A_th = torch.from_numpy(pi_A)
-        pi_B_A_th = torch.from_numpy(pi_B_A)
-        
-        log_joint = torch.log(pi_A_th.unsqueeze(1)) + torch.log(pi_B_A_th)
-        log_p_B = torch.logsumexp(log_joint, dim=0)
-        
-        self.p_A.w.data = log_p_B
-        self.p_B_A.w.data = log_joint.t() - log_p_B.unsqueeze(1)
-
 class StructuralModel(nn.Module):
     def __init__(self, N, dtype=None):
         super(StructuralModel, self).__init__()
-        self.model_A_B = Model1(N, dtype=dtype)
-        self.model_B_A = Model2(N, dtype=dtype)
+        self.model_A_B = Model(N, dtype=dtype)
+        self.model_B_A = Model(N, dtype=dtype)
         self.w = nn.Parameter(torch.tensor(0., dtype=dtype))
     
     def set_ground_truth(self, pi_A, pi_B_A):
         self.model_A_B.set_ground_truth(pi_A, pi_B_A)
-        self.model_B_A.set_ground_truth(pi_A, pi_B_A)
+        
+        # Calculate P(B) and P(A|B)
+        pi_A_th = torch.from_numpy(pi_A)
+        pi_B_A_th = torch.from_numpy(pi_B_A)
+        log_joint = torch.log(pi_A_th.unsqueeze(1)) + torch.log(pi_B_A_th)
+        log_p_B = torch.logsumexp(log_joint, dim=0)
+        pi_B = torch.exp(log_p_B)
+        pi_A_B = torch.exp(log_joint.t() - log_p_B.unsqueeze(1))
+
+        self.model_B_A.set_ground_truth(pi_B, pi_A_B)
     
     def set_maximum_likelihood(self, inputs):
         self.model_A_B.set_maximum_likelihood(inputs)
