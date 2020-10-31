@@ -6,14 +6,18 @@ from itertools import chain
 from util import logsumexp
 
 class Marginal(nn.Module):
-    def __init__(self, N, dtype=None):
-        super(Marginal, self).__init__()
-        self.N = N
-        self.w = nn.Parameter(torch.zeros(N, dtype=dtype))
+  def __init__(self, N, dtype=None):
+      super(Marginal, self).__init__()
+      self.N = N
+      self.w = nn.Parameter(torch.zeros(N, dtype=dtype))
 
-    def forward(self, inputs):
-        cste = torch.logsumexp(self.w, dim=0)
-        return self.w[inputs.squeeze(1)] - cste
+  def forward(self, inputs):
+      '''
+      w is the log probability of each input value
+      cste should be 0
+      '''
+      cste = torch.logsumexp(self.w, dim=0)
+      return self.w[inputs.squeeze(1)] - cste
 
 class Conditional(nn.Module):
     def __init__(self, N, dtype=None):
@@ -26,9 +30,29 @@ class Conditional(nn.Module):
         cste = torch.logsumexp(self.w[conds_], dim=1)
         return self.w[conds_, inputs.squeeze(1)] - cste
 
-class Model(nn.Module):
+class ModelNonCausal(nn.Module):
+    '''
+    The non-causal model captures P(A,B)
+    '''
     def __init__(self, N, dtype=None):
-        super(Model, self).__init__()
+        super(ModelNonCausal, self).__init__()
+        self.N = N
+        self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
+
+    def forward(self, inputs):
+        return self.w[inputs[:,0], inputs[:,1]]
+
+    def set_ground_truth(self, pi_A, pi_B_A):
+        pi_A_AND_B = np.random.dirichlet(np.ones(self.N), size=self.N)
+        pi_A_AND_B = torch.from_numpy(pi_A_AND_B)        
+        self.w.data = torch.log(pi_A_AND_B)
+
+class ModelCausal(nn.Module):
+    '''
+    The causal model captures P(B|A)P(A)
+    '''
+    def __init__(self, N, dtype=None):
+        super(ModelCausal, self).__init__()
         self.N = N
         self.p_A = Marginal(N, dtype=dtype)
         self.p_B_A = Conditional(N, dtype=dtype)
@@ -59,6 +83,8 @@ class Model(nn.Module):
         return self.set_ground_truth(pi_A, pi_B_A)
 
     def set_ground_truth(self, pi_A, pi_B_A):
+        pi_A = np.random.dirichlet(np.ones(self.N))
+        pi_B_A = np.random.dirichlet(np.ones(self.N), size=self.N)
         pi_A_th = pi_A
         if isinstance(pi_A_th, np.ndarray):
           pi_A_th = torch.from_numpy(pi_A_th)
@@ -73,12 +99,12 @@ class Model(nn.Module):
 class StructuralModel(nn.Module):
     def __init__(self, N, dtype=None):
         super(StructuralModel, self).__init__()
-        self.model_A_B = Model(N, dtype=dtype)
-        self.model_B_A = Model(N, dtype=dtype)
+        self.model_causal = ModelCausal(N, dtype=dtype)
+        self.model_noncausal = ModelNonCausal(N, dtype=dtype)
         self.w = nn.Parameter(torch.tensor(0., dtype=dtype))
     
     def set_ground_truth(self, pi_A, pi_B_A):
-        self.model_A_B.set_ground_truth(pi_A, pi_B_A)
+        self.model_causal.set_ground_truth(pi_A, pi_B_A)
         
         # Calculate P(B) and P(A|B)
         pi_A_th = torch.from_numpy(pi_A)
@@ -88,14 +114,14 @@ class StructuralModel(nn.Module):
         pi_B = torch.exp(log_p_B)
         pi_A_B = torch.exp(log_joint.t() - log_p_B.unsqueeze(1))
 
-        self.model_B_A.set_ground_truth(pi_B, pi_A_B)
+        self.model_noncausal.set_ground_truth(pi_B, pi_A_B)
     
     def set_maximum_likelihood(self, inputs):
-        self.model_A_B.set_maximum_likelihood(inputs)
-        self.model_B_A.set_maximum_likelihood(inputs)
+        self.model_causal.set_maximum_likelihood(inputs)
+        self.model_noncausal.set_maximum_likelihood(inputs)
 
     def forward(self, inputs):
-        return self.online_loglikelihood(self.model_A_B(inputs), self.model_B_A(inputs))
+        return self.online_loglikelihood(self.model_causal(inputs), self.model_noncausal(inputs))
 
     def online_loglikelihood(self, logl_A_B, logl_B_A):
         n = logl_A_B.size(0)
@@ -105,7 +131,7 @@ class StructuralModel(nn.Module):
             log_1_m_alpha + torch.sum(logl_B_A))# / float(n)
 
     def modules_parameters(self):
-        return chain(self.model_A_B.parameters(), self.model_B_A.parameters())
+        return chain(self.model_causal.parameters(), self.model_noncausal.parameters())
 
     def structural_parameters(self):
         return [self.w]
