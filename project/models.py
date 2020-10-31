@@ -1,42 +1,57 @@
 import numpy as np
+from numpy.core.defchararray import mod
 import torch
 import torch.nn as nn
 
 from itertools import chain
+
+from torch.nn.modules.module import Module
 from util import logsumexp
 
-class Marginal(nn.Module):
-  def __init__(self, N, dtype=None):
-      super(Marginal, self).__init__()
-      self.N = N
-      self.w = nn.Parameter(torch.zeros(N, dtype=dtype))
-
-  def forward(self, inputs):
-      '''
-      w is the log probability of each input value
-      cste should be 0
-      '''
-      cste = torch.logsumexp(self.w, dim=0)
-      return self.w[inputs.squeeze(1)] - cste
-
-class Conditional(nn.Module):
+class NNModule(nn.Module):
     def __init__(self, N, dtype=None):
-        super(Conditional, self).__init__()
+        super(NNModule, self).__init__()
         self.N = N
+
+    def save_weight_snapshot(self):
+        # w_ is snapshot of w, used to recover the NN weights
+        self.w_ = self.w
+
+    def load_weight_snapshot(self):
+        self.w = self.w_
+
+class Marginal(NNModule):
+    def __init__(self, N, dtype=None):
+        super(Marginal, self).__init__(N)
+        self.w = nn.Parameter(torch.zeros(N, dtype=dtype))
+
+        self.w_ = nn.Parameter(torch.zeros(N, dtype=dtype))
+
+    def forward(self, inputs):
+        '''
+        w is the log probability of each input value
+        cste should be 0
+        '''
+        cste = torch.logsumexp(self.w, dim=0)
+        return self.w[inputs.squeeze(1)] - cste
+
+class Conditional(NNModule):
+    def __init__(self, N, dtype=None):
+        super(Conditional, self).__init__(N)
         self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
+        self.w_ = nn.Parameter(torch.zeros((N, N), dtype=dtype))
     
     def forward(self, inputs, conds):
         conds_ = conds.squeeze(1)
         cste = torch.logsumexp(self.w[conds_], dim=1)
         return self.w[conds_, inputs.squeeze(1)] - cste
 
-class ModelNonCausal(nn.Module):
+class ModelNonCausal(NNModule):
     '''
     The non-causal model captures P(A,B)
     '''
     def __init__(self, N, dtype=None):
-        super(ModelNonCausal, self).__init__()
-        self.N = N
+        super(ModelNonCausal, self).__init__(N)
         self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
 
     def forward(self, inputs):
@@ -50,13 +65,12 @@ class ModelNonCausal(nn.Module):
         pi_A_AND_B = torch.from_numpy(pi_A_AND_B)        
         self.w.data = torch.log(pi_A_AND_B)
 
-class ModelCausal(nn.Module):
+class ModelCausal(NNModule):
     '''
     The causal model captures P(B|A)P(A)
     '''
     def __init__(self, N, dtype=None):
-        super(ModelCausal, self).__init__()
-        self.N = N
+        super(ModelCausal, self).__init__(N)
         self.p_A = Marginal(N, dtype=dtype)
         self.p_B_A = Conditional(N, dtype=dtype)
 
@@ -95,12 +109,21 @@ class ModelCausal(nn.Module):
         self.p_A.w.data = torch.log(pi_A)
         self.p_B_A.w.data = torch.log(pi_B_A)
 
-class StructuralModel(nn.Module):
+    def save_weight_snapshot(self):
+        self.p_A.save_weight_snapshot()
+        self.p_B_A.save_weight_snapshot()
+
+    def load_weight_snapshot(self):
+        self.p_A.load_weight_snapshot()
+        self.p_B_A.load_weight_snapshot()
+
+class StructuralModel(NNModule):
     def __init__(self, N, dtype=None):
-        super(StructuralModel, self).__init__()
+        super(StructuralModel, self).__init__(N)
         self.model_causal = ModelCausal(N, dtype=dtype)
         self.model_noncausal = ModelNonCausal(N, dtype=dtype)
         self.w = nn.Parameter(torch.tensor(0., dtype=dtype))
+        self.w_ = nn.Parameter(torch.tensor(0., dtype=dtype))
     
     def initialize_weights(self):
         self.model_causal.initialize_weights()
@@ -125,3 +148,13 @@ class StructuralModel(nn.Module):
 
     def structural_parameters(self):
         return [self.w]
+
+    def save_weight_snapshot(self):
+        super(StructuralModel, self).save_weight_snapshot()
+        self.model_causal.save_weight_snapshot()
+        self.model_noncausal.save_weight_snapshot()
+
+    def load_weight_snapshot(self):
+        super(StructuralModel, self).save_weight_snapshot()
+        self.model_causal.load_weight_snapshot()
+        self.model_noncausal.load_weight_snapshot()
