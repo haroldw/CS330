@@ -44,7 +44,7 @@ class ModelNonCausal(nn.Module):
         cste = torch.logsumexp(torch.logsumexp(self.w, dim=0), dim=0)
         return self.w[inputs[:,0], inputs[:,1]] - cste
 
-    def set_ground_truth(self, pi_A, pi_B_A):
+    def initialize_weights(self):
         # Initializing the model parameter to some random value
         pi_A_AND_B = np.random.dirichlet(np.ones(self.N), size=self.N)
         pi_A_AND_B = torch.from_numpy(pi_A_AND_B)        
@@ -85,20 +85,15 @@ class ModelCausal(nn.Module):
 
         return self.set_ground_truth(pi_A, pi_B_A)
 
-    def set_ground_truth(self, pi_A, pi_B_A):
+    def initialize_weights(self):
         # Initializing the model parameter to some random value
         pi_A = np.random.dirichlet(np.ones(self.N))
         pi_B_A = np.random.dirichlet(np.ones(self.N), size=self.N)
-        pi_A_th = pi_A
-        if isinstance(pi_A_th, np.ndarray):
-          pi_A_th = torch.from_numpy(pi_A_th)
-
-        pi_B_A_th = pi_B_A
-        if isinstance(pi_B_A_th, np.ndarray):
-          pi_B_A_th = torch.from_numpy(pi_B_A_th)
+        pi_A = torch.from_numpy(pi_A)
+        pi_B_A = torch.from_numpy(pi_B_A)
         
-        self.p_A.w.data = torch.log(pi_A_th)
-        self.p_B_A.w.data = torch.log(pi_B_A_th)
+        self.p_A.w.data = torch.log(pi_A)
+        self.p_B_A.w.data = torch.log(pi_B_A)
 
 class StructuralModel(nn.Module):
     def __init__(self, N, dtype=None):
@@ -107,18 +102,9 @@ class StructuralModel(nn.Module):
         self.model_noncausal = ModelNonCausal(N, dtype=dtype)
         self.w = nn.Parameter(torch.tensor(0., dtype=dtype))
     
-    def set_ground_truth(self, pi_A, pi_B_A):
-        self.model_causal.set_ground_truth(pi_A, pi_B_A)
-        
-        # Calculate P(B) and P(A|B)
-        pi_A_th = torch.from_numpy(pi_A)
-        pi_B_A_th = torch.from_numpy(pi_B_A)
-        log_joint = torch.log(pi_A_th.unsqueeze(1)) + torch.log(pi_B_A_th)
-        log_p_B = torch.logsumexp(log_joint, dim=0)
-        pi_B = torch.exp(log_p_B)
-        pi_A_B = torch.exp(log_joint.t() - log_p_B.unsqueeze(1))
-
-        self.model_noncausal.set_ground_truth(pi_B, pi_A_B)
+    def initialize_weights(self):
+        self.model_causal.initialize_weights()
+        self.model_noncausal.initialize_weights()
     
     def set_maximum_likelihood(self, inputs):
         self.model_causal.set_maximum_likelihood(inputs)
