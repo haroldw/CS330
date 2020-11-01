@@ -12,7 +12,7 @@ model = StructuralModel(N, dtype=torch.float64)
 num_episodes = 1000
 batch_size = 100 # 1
 num_test = 10000
-num_training = 1 # 100
+num_training = 10 # 100
 num_transfers = 10 # 100
 
 optimizer = torch.optim.SGD(model.modules_parameters(), lr=1.)
@@ -91,4 +91,4 @@ for k in tqdm.trange(num_training):
             loss.backward()
             optimizer.step()
 
-plot_loss(losses)
+plot_loss(losses, "baseline_loss_comparison.png")
