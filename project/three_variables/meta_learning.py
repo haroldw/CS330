@@ -13,7 +13,7 @@ optimizer = torch.optim.SGD(model.modules_parameters(), lr=1e-1)
 meta_optimizer = torch.optim.RMSprop([model.w], lr=1e-2)
 
 num_runs = 1 # 10
-num_training = 10 # 100
+num_training = 1 # 100
 num_transfer = 1000
 num_gradient_steps = 2
 batch_size = 100
@@ -74,7 +74,7 @@ for j in range(num_runs):
 # collapse the first two dimensions (# runs, # train) of alphas into one
 # look at the middle 50 percentile among all the runs and trains
 flat_alphas = alphas.reshape((-1, num_transfer))
-alphas_25, alphas_50, alphas_75 = np.percentile(flat_alphas, (25, 50, 75), axis=0)
+alphas_50 = np.percentile(flat_alphas, 50, axis=0)
 
 fig = plt.figure(figsize=(9, 5))
 ax = plt.subplot(1, 1, 1)
@@ -83,9 +83,6 @@ ax.tick_params(axis='both', which='major', labelsize=13)
 ax.axhline(1, c='lightgray', ls='--')
 ax.axhline(0, c='lightgray', ls='--')
 ax.plot(alphas_50, lw=2, color='k')
-ax.fill_between(
-    np.arange(num_transfer), alphas_25, alphas_75, color="k", alpha=0.2
-)
 ax.set_xlim([0, num_transfer - 1])
 ax.set_xlabel('Number of episodes', fontsize=14)
 ax.set_ylabel(r'$\sigma(\gamma)$', fontsize=14)
