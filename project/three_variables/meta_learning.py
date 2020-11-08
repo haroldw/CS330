@@ -13,12 +13,11 @@ optimizer = torch.optim.SGD(model.modules_parameters(), lr=1e-1)
 meta_optimizer = torch.optim.RMSprop([model.w], lr=1e-2)
 
 num_runs = 1 # 10
-num_training = 1 # 100
+num_training = 10 # 100
 num_transfer = 1000
 num_gradient_steps = 2
 batch_size = 100
 
-train_batch_size = 1000
 transfer_batch_size = 10
 
 alphas = np.zeros((num_runs, num_training, num_transfer))
@@ -35,10 +34,9 @@ for j in range(num_runs):
         for w in range(5000):
             x_transfer = generate_data_categorical(batch_size, pi_A_1, pi_B_A, pi_C_B)
             model.zero_grad()
-            loss_A_B = -torch.mean(model.model_causal(x_transfer))
-            loss_B_A = -torch.mean(model.model_noncausal(x_transfer))
-            loss_C_B = -torch.mean(model.model_noncausal(x_transfer))
-            loss = loss_A_B + loss_B_A + loss_C_B
+            loss_causal = -torch.mean(model.model_causal(x_transfer))
+            loss_noncausal = -torch.mean(model.model_noncausal(x_transfer))
+            loss = loss_causal + loss_noncausal
             loss.backward()
             optimizer.step()
         model.save_weight_snapshot()
@@ -73,7 +71,10 @@ for j in range(num_runs):
             alphas[j, i, k] = alpha
             transfers.set_postfix(alpha='{0:.4f}'.format(alpha), grad='{0:.4f}'.format(model.w.grad.item()))
 
-alphas_50 = np.percentile(alphas.reshape((-1, num_transfer)), 50, axis=0)
+# collapse the first two dimensions (# runs, # train) of alphas into one
+# look at the middle 50 percentile among all the runs and trains
+flat_alphas = alphas.reshape((-1, num_transfer))
+alphas_25, alphas_50, alphas_75 = np.percentile(flat_alphas, (25, 50, 75), axis=0)
 
 fig = plt.figure(figsize=(9, 5))
 ax = plt.subplot(1, 1, 1)
@@ -82,9 +83,11 @@ ax.tick_params(axis='both', which='major', labelsize=13)
 ax.axhline(1, c='lightgray', ls='--')
 ax.axhline(0, c='lightgray', ls='--')
 ax.plot(alphas_50, lw=2, color='k')
-
+ax.fill_between(
+    np.arange(num_transfer), alphas_25, alphas_75, color="k", alpha=0.2
+)
 ax.set_xlim([0, num_transfer - 1])
 ax.set_xlabel('Number of episodes', fontsize=14)
 ax.set_ylabel(r'$\sigma(\gamma)$', fontsize=14)
 
-plt.savefig("metalearning_alpha50.png")
+plt.savefig("metalearning_alpha.png")
