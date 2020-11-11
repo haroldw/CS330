@@ -42,10 +42,10 @@ for k in tqdm.trange(num_training):
             loss = sum([-torch.mean(l) for l in model.compute_losses(x_transfer)])
 
             with torch.no_grad():
-                val_loss = [-torch.mean(l) for l in model.compute_losses(x_val)]
+                val_loss = [-torch.mean(l).item() for l in model.compute_losses(x_val)]
             losses[:, k, j, i] = val_loss
 
             loss.backward()
             optimizer.step()
 
-plot_loss(losses, model, "three_variables_loss_comparison.png")
+plot_loss(losses, model, "loss_comparison_{}_models.png".format(model.n_models))

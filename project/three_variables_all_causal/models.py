@@ -130,7 +130,7 @@ class StructuralModel(NNModule):
     def online_loglikelihood(self, logl_models):
         assert len(logl_models) == self.n_models
         weighted_total = sum(
-            [F.logsigmoid(self.w[i] + torch.sum(logl_models[i]) for i in range(self.n_models))]
+            [F.logsigmoid(self.w[i]) + torch.sum(logl_models[i]) for i in range(self.n_models)]
         )
         return logsumexp(weighted_total)
 
