@@ -82,19 +82,28 @@ class ModelCausal(NNModule):
 class StructuralModel(NNModule):
     def __init__(self, N, dtype=None):
         super(StructuralModel, self).__init__(N)
+        self.a_ab_ac = ModelCausal(N, dtype=dtype)
+        self.a_ab_bc = ModelCausal(N, dtype=dtype)
+        self.a_ac_cb = ModelCausal(N, dtype=dtype)
+        self.b_ba_bc = ModelCausal(N, dtype=dtype)
+        self.b_ba_ac = ModelCausal(N, dtype=dtype)
+        self.b_bc_ca = ModelCausal(N, dtype=dtype)
+        self.c_ca_cb = ModelCausal(N, dtype=dtype)
+        self.c_ca_ab = ModelCausal(N, dtype=dtype)
+        self.c_cb_ba = ModelCausal(N, dtype=dtype)
         self.models = {
             # a causes b and a causes c
-            "a_ab_ac": ModelCausal(N, dtype=dtype),
+            "a_ab_ac": self.a_ab_ac,
             # a causes b and b causes c
-            "a_ab_bc": ModelCausal(N, dtype=dtype),
+            "a_ab_bc": self.a_ab_bc,
             # a causes c and c causes b
-            "a_ac_cb": ModelCausal(N, dtype=dtype),
-            "b_ba_bc": ModelCausal(N, dtype=dtype),
-            "b_ba_ac": ModelCausal(N, dtype=dtype),
-            "b_bc_ca": ModelCausal(N, dtype=dtype),
-            "c_ca_cb": ModelCausal(N, dtype=dtype),
-            "c_ca_ab": ModelCausal(N, dtype=dtype),
-            "c_cb_ba": ModelCausal(N, dtype=dtype)
+            "a_ac_cb": self.a_ac_cb,
+            "b_ba_bc": self.b_ba_bc,
+            "b_ba_ac": self.b_ba_ac,
+            "b_bc_ca": self.b_bc_ca,
+            "c_ca_cb": self.c_ca_cb,
+            "c_ca_ab": self.c_ca_ab,
+            "c_cb_ba": self.c_cb_ba
         }
         model_names = list(self.models.keys())
         model_names.sort()
@@ -115,14 +124,14 @@ class StructuralModel(NNModule):
         }
         logl_models = []
         for name in self.model_names:
-            m, c1, c2 = name.split("_") # ['a', 'ab', 'ac']
+            m, c1, c2 = name.split("_") # ['a', 'ab', 'bc']
             model = self.models[name]
             log1_model = model(
-                inputs_M = input_dict[m],
-                inputs_C1_A = input_dict[c1[0]],
-                inputs_C1_B = input_dict[c1[1]],
-                inputs_C2_A = input_dict[c2[0]],
-                inputs_C2_B = input_dict[c2[1]]
+                inputs_M = input_dict[m], # a
+                inputs_C1_A = input_dict[c1[0]], # a
+                inputs_C1_B = input_dict[c1[1]], # b
+                inputs_C2_A = input_dict[c2[0]], # b
+                inputs_C2_B = input_dict[c2[1]]  # c
             )
             logl_models.append(log1_model)
         return logl_models
