@@ -45,12 +45,12 @@ def plot_loss(losses, model, image_output_path=None):
     ax = plt.subplot(1, 1, 1)
     count = 0
     for model_name in model.model_names:
-        ax.plot(losses_50[count], color="C{}".format(count), label=model_name, lw=2)
+        lw = 2 if model_name == "a_ab_bc" else 2 
+        ax.plot(losses_50[count], color="C{}".format(count), label=model_name, lw=lw)
         # ax.fill_between(
         #     np.arange(num_episodes), losses_25[count], losses_75[count], color="C{}".format(count), alpha=0.2
         # )
         count += 1
-    ax.set_xlim([0, 50])
     ax.tick_params(axis="both", which="major", labelsize=13)
     ax.legend(loc=4, prop={"size": 13})
     ax.set_xlabel("Number of examples", fontsize=14)

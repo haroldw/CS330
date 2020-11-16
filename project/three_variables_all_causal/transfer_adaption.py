@@ -9,13 +9,13 @@ from models import StructuralModel
 N = 10
 model = StructuralModel(N, dtype=torch.float64)
 
-num_episodes = 50
+num_episodes = 150
 batch_size = 100  # 1
 num_test = 5000
-num_training = 10 # 10  # 100
-num_transfers = 10  # 100
+num_training = 1 # 10  # 100
+num_transfers = 1  # 100
 
-optimizer = torch.optim.SGD(model.modules_parameters(), lr=1.0)
+optimizer = torch.optim.SGD(model.modules_parameters(), lr=0.05)
 
 losses = np.zeros((model.n_models, num_training, num_transfers, num_episodes))
 
