@@ -20,49 +20,74 @@ class NNModule(nn.Module):
     def load_weight_snapshot(self):
         self.w = self.w_
 
-class NNMarginal(nn.Module):
-    def __init__(self, N, isCondition):
-        super(NNModule, self).__init__()
-        
-
-class Marginal(NNModule):
-    def __init__(self, N, dtype=None):
-        super(Marginal, self).__init__(N)
-        self.w = nn.Parameter(torch.zeros(N, dtype=dtype))
-
-        self.w_ = nn.Parameter(torch.zeros(N, dtype=dtype))
+class NNModel(nn.Module):
+    def __init__(self, N, K, innerDim=32, isConditional=False, isJoint=False):
+        # N is the number of unique distinct values each variable can take
+        # K is the the number samples per batch
+        super(NNModel, self).__init__()
+        self.N = N
+        self.isConditional = isConditional
+        self.isJoint = isJoint
+        self.fc1 = nn.Linear(K, innerDim)
+        if isConditional:
+            self.fc1 = nn.Linear(2*K+N, innerDim)
+        elif isJoint:
+            self.fc1 = nn.Linear(2*K, innerDim)
+        self.fc2 = nn.Linear(innerDim, innerDim)
+        outputSize = N
+        if isConditional or isJoint:
+            outputSize = N * N
+        self.fc3 = nn.Linear(innerDim, innerDim)
+        self.fc4 = nn.Linear(innerDim, innerDim)
+        self.fc5 = nn.Linear(innerDim, innerDim)
+        self.fc6 = nn.Linear(innerDim, innerDim)
+        self.fc7 = nn.Linear(innerDim, outputSize)
+        self.output = torch.nn.Softmax()
 
     def forward(self, inputs):
-        '''
-        w is the log probability of each input value
-        cste should be 0
-        '''
-        cste = torch.logsumexp(self.w, dim=0)
-        return self.w[inputs.squeeze(1)] - cste
+        # inputs should have shape (batchSize, K)
+        # returns the l2 distance between the ground truth and input data
+        x = self.fc1(inputs)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        x = F.relu(x)
+        # x = self.fc4(x)
+        # x = F.relu(x)
+        # x = self.fc5(x)
+        # x = F.relu(x)
+        # x = self.fc6(x)
+        # x = F.relu(x)
+        x = self.fc7(x)
+        
+        if self.isConditional:
+            x = x.reshape((-1, self.N))
+            x = F.softmax(x, dim=1)
+        elif self.isJoint:
+            x = self.output(x)
+            x = x.reshape((-1, self.N))
+        else:
+            x = self.output(x)
+        return x
 
-class Conditional(NNModule):
-    def __init__(self, N, dtype=None):
-        super(Conditional, self).__init__(N)
-        self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
-        self.w_ = nn.Parameter(torch.zeros((N, N), dtype=dtype))
-    
-    def forward(self, inputs, conds):
-        conds_ = conds.squeeze(1)
-        cste = torch.logsumexp(self.w[conds_], dim=1)
-        return self.w[conds_, inputs.squeeze(1)] - cste
+    def save_weight_snapshot(self):
+        self.w_ = self.w
+
+    def load_weight_snapshot(self):
+        self.w = self.w_
 
 class ModelNonCausal(NNModule):
     '''
     The non-causal model captures P(A,B)
     '''
-    def __init__(self, N, dtype=None):
+    def __init__(self, N, K, dtype=None):
         super(ModelNonCausal, self).__init__(N)
-        self.w = nn.Parameter(torch.zeros((N, N), dtype=dtype))
+        self.p_AB = NNModel(N, K, isJoint=True)
 
     def forward(self, inputs):
         # We need to normalize the weight so that it adds up to 1
-        cste = torch.logsumexp(torch.logsumexp(self.w, dim=0), dim=0)
-        return self.w[inputs[:,0], inputs[:,1]] - cste
+        return self.p_AB(inputs.reshape((1,-1)).float())
 
     def initialize_weights(self):
         # Initializing the model parameter to some random value
@@ -74,14 +99,18 @@ class ModelCausal(NNModule):
     '''
     The causal model captures P(B|A)P(A)
     '''
-    def __init__(self, N, dtype=None):
+    def __init__(self, N, K, dtype=None):
         super(ModelCausal, self).__init__(N)
-        self.p_A = Marginal(N, dtype=dtype)
-        self.p_B_A = Conditional(N, dtype=dtype)
+        self.p_A = NNModel(N, K)
+        self.p_B_A = NNModel(N, K, isConditional=True)
 
     def forward(self, inputs):
-        inputs_A, inputs_B = torch.split(inputs, 1, dim=1)
-        return self.p_A(inputs_A) + self.p_B_A(inputs_B, inputs_A)
+        inputs_A, _ = torch.split(inputs, 1, dim=-1)
+        predConditional = self.p_A(inputs_A.reshape((1,-1)).float())
+        predMarginal = self.p_B_A(torch.cat((inputs.reshape((1,-1)).float(),
+                                             predConditional), dim=1))
+        predJoint = torch.mul(predMarginal, predConditional)
+        return predConditional, predMarginal, predJoint
 
     def set_maximum_likelihood(self, inputs):
         inputs_A, inputs_B = np.split(inputs.numpy(), 2, axis=1)
@@ -123,10 +152,10 @@ class ModelCausal(NNModule):
         self.p_B_A.load_weight_snapshot()
 
 class StructuralModel(NNModule):
-    def __init__(self, N, dtype=None):
+    def __init__(self, N, K, dtype=None):
         super(StructuralModel, self).__init__(N)
-        self.model_causal = ModelCausal(N, dtype=dtype)
-        self.model_noncausal = ModelNonCausal(N, dtype=dtype)
+        self.model_causal = ModelCausal(N, K, dtype=dtype)
+        self.model_noncausal = ModelNonCausal(N, K, dtype=dtype)
         self.w = nn.Parameter(torch.tensor(0., dtype=dtype))
         self.w_ = nn.Parameter(torch.tensor(0., dtype=dtype))
     

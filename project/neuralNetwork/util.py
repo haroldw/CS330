@@ -37,7 +37,7 @@ def plot_loss(losses, image_output_path=None):
     ax.fill_between(np.arange(num_episodes), losses_25[0], losses_75[0], color='C0', alpha=0.2)
     ax.plot(losses_50[1], color='C3', label=r'Non Causal', lw=2)
     ax.fill_between(np.arange(num_episodes), losses_25[1], losses_75[1], color='C3', alpha=0.2)
-    ax.set_xlim([0, 50])
+    # ax.set_xlim([0, 500])
     ax.tick_params(axis='both', which='major', labelsize=13)
     ax.legend(loc=4, prop={'size': 13})
     ax.set_xlabel('Number of examples', fontsize=14)
